@@ -13,7 +13,7 @@ from collections import Counter
 from http.server import HTTPServer
 import oauth_addon
 
-VERSION = "3.3.0"
+VERSION = "3.3.1"
 
 # --- .env loading ---
 def _load_dotenv():
