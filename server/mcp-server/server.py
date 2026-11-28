@@ -11,6 +11,7 @@ import http.server, json, os, sys, urllib.request, urllib.parse, urllib.error, t
 import base64, hashlib, hmac, queue, secrets, string, socketserver
 from collections import Counter
 from http.server import HTTPServer
+import oauth_addon
 
 VERSION = "3.3.0"
 
@@ -1100,7 +1101,11 @@ def token_ok(header):
     if not AUTH_TOKEN:
         return True
     scheme, _, value = (header or '').partition(' ')
-    return scheme.lower() == 'bearer' and hmac.compare_digest(value.strip().encode(), AUTH_TOKEN.encode())
+    if scheme.lower() != 'bearer':
+        return False
+    value = value.strip()
+    return (hmac.compare_digest(value.encode(), AUTH_TOKEN.encode())
+            or oauth_addon.is_access_token(value))
 
 class MCPHandler(http.server.BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
@@ -1167,6 +1172,8 @@ class MCPHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self._path()
+        if oauth_addon.handle_get(self, path):
+            return
         if path == '/health':
             return self._send(200, {"status": "ok", "tools": len(TOOLS), "version": VERSION})
         if not self._guard():
@@ -1190,6 +1197,8 @@ class MCPHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self._path()
+        if oauth_addon.handle_post(self, path):
+            return
         if path not in ('/mcp', '/message'):
             return self._send(404, {"error": "Not found"})
         if not self._guard():
